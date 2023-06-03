@@ -1,6 +1,5 @@
 import os
 import shutil
-import pandas as pd
 import pdfkit
 from PyPDF2 import PdfMerger
 from concurrent.futures import ThreadPoolExecutor
@@ -9,8 +8,15 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import filedialog
 
+try:
+    os.mkdir(".Results")
+except Exception as e:
+    pass
 
-
+try:
+    os.mkdir("Output")
+except Exception as e:
+    pass
 
 # Configure pdfkit to point to the installation of wkhtmltopdf
 config = pdfkit.configuration(wkhtmltopdf=r"C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe")
@@ -18,30 +24,23 @@ config = pdfkit.configuration(wkhtmltopdf=r"C:\\Program Files\\wkhtmltopdf\\bin\
 # Function to fetch results
 def fetch_results():
     try:
-        os.mkdir(".Results")
-    except Exception as e:
-        pass
-
-    try:
         starting_range = int(start_range_entry.get())
         ending_range = int(end_range_entry.get())
 
         rollnos = [rollno for rollno in range(starting_range, ending_range + 1)]
 
-        base_url = "https://rajeduboard.rajasthan.gov.in/RESULT2023/ARTS/Roll_Output.asp?roll_no="  # Default for ARTS
-
-        if choice_var.get() == 1:
-            base_url = "https://rajeduboard.rajasthan.gov.in/RESULT2023/SCIENCE/Roll_Output.asp?roll_no="
-        elif choice_var.get() == 2:
-            base_url = "https://rajeduboard.rajasthan.gov.in/RESULT2023/COMM/Roll_Output.asp?roll_no="
-        elif choice_var.get() == 3:
-            base_url = "https://rajeduboard.rajasthan.gov.in/RESULT2023/ARTS/Roll_Output.asp?roll_no="
-
+        base_urls = [
+            "https://rajeduboard.rajasthan.gov.in/RESULT2023/SCIENCE/Roll_Output.asp?roll_no=",
+            "https://rajeduboard.rajasthan.gov.in/RESULT2023/COMM/Roll_Output.asp?roll_no=",
+            "https://rajeduboard.rajasthan.gov.in/RESULT2023/ARTS/Roll_Output.asp?roll_no="
+        ]
         stream_names = ["Science", "Commerce", "Arts"]
+
+        base_url = base_urls[choice_var.get()-1]
 
         def result(rollno):
             try:
-                pdfkit.from_url(f"{base_url}{rollno}&B1=Submit",
+                pdfkit.from_url(f"{base_url}{rollno}",
                                 os.path.join(os.getcwd(), ".Results", f'{rollno}.pdf'), configuration=config)
                 return f'{rollno}.pdf', "Done"
             except Exception as e:
@@ -65,7 +64,8 @@ def fetch_results():
 
         output_file_path = filedialog.asksaveasfilename(defaultextension=".pdf",
                                                         filetypes=[("PDF Files", "*.pdf")],
-                                                        title="Save Output PDF File")
+                                                        title="Save Output PDF File",
+                                                        initialfile=f"RBSE Class 12th {stream_names[choice_var.get()-1]} Result {rollnos[0]}-{rollnos[-1]}.pdf")
         if output_file_path:
             merger.write(output_file_path)
             messagebox.showinfo("Success", "Results fetched and saved successfully!")
@@ -89,12 +89,15 @@ choice_var = tk.IntVar()
 
 # Function to enable/disable input fields based on choice
 def update_input_fields():
-    if choice_var.get() == 1:
+    if choice_var.get() in [1,2,3]:
         start_range_entry.config(state=tk.NORMAL)
         end_range_entry.config(state=tk.NORMAL)
     else:
+        start_range_entry.delete(0, tk.END)
+        end_range_entry.delete(0, tk.END)
         start_range_entry.config(state=tk.DISABLED)
         end_range_entry.config(state=tk.DISABLED)
+
 
 # Create the choice label and radio buttons
 choice_label = tk.Label(root, text="Select Stream:")
@@ -113,15 +116,11 @@ arts_radio.pack()
 range_label = tk.Label(root, text="Enter Roll No. Range:")
 range_label.pack()
 
-start_range_entry = tk.Entry(root)
+start_range_entry = tk.Entry(root, state=tk.DISABLED)
 start_range_entry.pack()
 
-end_range_entry = tk.Entry(root)
+end_range_entry = tk.Entry(root, state=tk.DISABLED)
 end_range_entry.pack()
-
-# Disable roll number range inputs by default
-start_range_entry.config(state=tk.DISABLED)
-end_range_entry.config(state=tk.DISABLED)
 
 # Create the fetch results button
 fetch_button = tk.Button(root, text="Fetch Results", command=fetch_results)
